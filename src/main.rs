@@ -11,6 +11,7 @@ use mosquitto_client::{Mosquitto, TopicMatcher};
 use std::{error::Error, thread, time, sync::Arc};
 use tokio::time::{self as TokioTime, Duration as TokioDuration};
 use tokio::sync::{RwLock, mpsc::channel};
+use tokio::runtime::Runtime;
 
 static MQTT_NAME: &'static str = dotenv!("MQTT_NAME");
 static MQTT_HOST: &'static str = dotenv!("MQTT_HOST");
@@ -30,14 +31,15 @@ lazy_static! {
     };
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
+    let rt  = Runtime::new()?;
+
     let lock = Arc::new(RwLock::new(ABSENT));
     let lock_cam = lock.clone();
 
     let (sender, mut receiver) = channel(2);
     let sender_cam = sender.clone();
-    tokio::spawn(async move {
+    rt.spawn(async move {
         let mut interval = TokioTime::interval(HTTP_CGI_INTERVAL);
 
         loop {
@@ -46,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    tokio::spawn(async move {
+    rt.spawn(async move {
         let event_leave: TopicMatcher = MQTT.subscribe(MQTT_SUBSCRIBE, 1).unwrap();
         let mut call = MQTT.callbacks(());
 
@@ -58,11 +60,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    while let (Some(past), Some(ref present)) = (receiver.recv().await, receiver.recv().await) {
-        sender.send(present.clone()).await?;
+    let ref before = receiver.blocking_recv().unwrap();
+    let mut before = image::load_from_memory(before)?;
+    while let Some(ref after)  = receiver.blocking_recv() {
+        let after = image::load_from_memory(after)?;
 
-        let distortion = compare(&past, present)?;
+        let distortion = compare(&before, &after)?;
         MQTT.publish(&MQTT_PUBLISH, distortion.to_string().as_bytes(), 1, false)?;
+        before = after;
     }
     MQTT.disconnect()?;
     Ok(())
