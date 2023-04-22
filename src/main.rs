@@ -2,14 +2,13 @@
 extern crate dotenv_codegen;
 
 mod home;
-mod magick;
+mod compare;
 
 use home::{if_absent_send_image, callback_update_presence, ABSENT};
 use lazy_static::lazy_static;
-use magick::compare;
-use magick_rust::magick_wand_genesis;
+use compare::compare;
 use mosquitto_client::{Mosquitto, TopicMatcher};
-use std::{error::Error, thread, time, sync::{Once, Arc}};
+use std::{error::Error, thread, time, sync::Arc};
 use tokio::time::{self as TokioTime, Duration as TokioDuration};
 use tokio::sync::{RwLock, mpsc::channel};
 
@@ -20,10 +19,6 @@ static MQTT_SUBSCRIBE: &'static str = dotenv!("MQTT_TOPIC_DOOR");
 static MQTT_PUBLISH: &'static str = dotenv!("MQTT_TOPIC_MOTION");
 static MQTT_INTERVAL: time::Duration = time::Duration::from_secs(1);
 static HTTP_CGI_INTERVAL: TokioDuration = TokioDuration::from_secs(1);
-
-// Used to make sure MagickWand is initialized exactly once. Note that we
-// do not bother shutting down, we simply exit when we're done.
-static START: Once = Once::new();
 
 lazy_static! {
     static ref MQTT: Mosquitto = {
@@ -37,8 +32,6 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    START.call_once(|| magick_wand_genesis());
-    
     let lock = Arc::new(RwLock::new(ABSENT));
     let lock_cam = lock.clone();
 

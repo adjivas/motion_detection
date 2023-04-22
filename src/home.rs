@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use image::DynamicImage;
 use lazy_static::lazy_static;
 use mosquitto_client::{MosqMessage, TopicMatcher};
 use reqwest::{Client, RequestBuilder};
@@ -21,15 +21,17 @@ lazy_static! {
     };
 }
 
-async fn send_image(sender_cam: &Sender<Bytes>) -> Result<(), Box<dyn Error>> {
+async fn send_image(sender_cam: &Sender<DynamicImage>) -> Result<(), Box<dyn Error>> {
     let req = REQ_CAM.try_clone().unwrap();
     let buf = req.send().await?
                  .bytes().await?;
+    let img = image::load_from_memory(buf.as_ref())?;
 
-    Ok(sender_cam.send(buf).await?)
+    sender_cam.send(img).await?;
+    Ok(())
 }
 
-pub async fn if_absent_send_image(lock: &Lock, sender_cam: &Sender<Bytes>) -> Result<(), Box<dyn Error>> {
+pub async fn if_absent_send_image(lock: &Lock, sender_cam: &Sender<DynamicImage>) -> Result<(), Box<dyn Error>> {
     if let Ok(is_locked) = lock.try_read() {
         if *is_locked == ABSENT {
             send_image(&sender_cam).await?;
