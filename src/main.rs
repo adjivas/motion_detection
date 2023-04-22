@@ -2,16 +2,16 @@
 extern crate dotenv_codegen;
 
 mod home;
-mod magick;
+mod compare;
 
 use home::{if_absent_send_image, callback_update_presence, ABSENT};
 use lazy_static::lazy_static;
-use magick::compare;
-use magick_rust::magick_wand_genesis;
+use compare::compare;
 use mosquitto_client::{Mosquitto, TopicMatcher};
-use std::{error::Error, thread, time, sync::{Once, Arc}};
+use std::{error::Error, thread, time, sync::Arc};
 use tokio::time::{self as TokioTime, Duration as TokioDuration};
 use tokio::sync::{RwLock, mpsc::channel};
+use tokio::runtime::Runtime;
 
 static MQTT_NAME: &'static str = dotenv!("MQTT_NAME");
 static MQTT_HOST: &'static str = dotenv!("MQTT_HOST");
@@ -20,10 +20,6 @@ static MQTT_SUBSCRIBE: &'static str = dotenv!("MQTT_TOPIC_DOOR");
 static MQTT_PUBLISH: &'static str = dotenv!("MQTT_TOPIC_MOTION");
 static MQTT_INTERVAL: time::Duration = time::Duration::from_secs(1);
 static HTTP_CGI_INTERVAL: TokioDuration = TokioDuration::from_secs(1);
-
-// Used to make sure MagickWand is initialized exactly once. Note that we
-// do not bother shutting down, we simply exit when we're done.
-static START: Once = Once::new();
 
 lazy_static! {
     static ref MQTT: Mosquitto = {
@@ -35,16 +31,15 @@ lazy_static! {
     };
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    START.call_once(|| magick_wand_genesis());
-    
+fn main() -> Result<(), Box<dyn Error>> {
+    let rt  = Runtime::new()?;
+
     let lock = Arc::new(RwLock::new(ABSENT));
     let lock_cam = lock.clone();
 
     let (sender, mut receiver) = channel(2);
     let sender_cam = sender.clone();
-    tokio::spawn(async move {
+    rt.spawn(async move {
         let mut interval = TokioTime::interval(HTTP_CGI_INTERVAL);
 
         loop {
@@ -53,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    tokio::spawn(async move {
+    rt.spawn(async move {
         let event_leave: TopicMatcher = MQTT.subscribe(MQTT_SUBSCRIBE, 1).unwrap();
         let mut call = MQTT.callbacks(());
 
@@ -65,11 +60,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    while let (Some(past), Some(ref present)) = (receiver.recv().await, receiver.recv().await) {
-        sender.send(present.clone()).await?;
+    let ref before = receiver.blocking_recv().unwrap();
+    let mut before = image::load_from_memory(before)?;
+    while let Some(ref after)  = receiver.blocking_recv() {
+        let after = image::load_from_memory(after)?;
 
-        let distortion = compare(&past, present)?;
+        let distortion = compare(&before, &after)?;
         MQTT.publish(&MQTT_PUBLISH, distortion.to_string().as_bytes(), 1, false)?;
+        before = after;
     }
     MQTT.disconnect()?;
     Ok(())

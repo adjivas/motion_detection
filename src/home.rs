@@ -25,8 +25,8 @@ async fn send_image(sender_cam: &Sender<Bytes>) -> Result<(), Box<dyn Error>> {
     let req = REQ_CAM.try_clone().unwrap();
     let buf = req.send().await?
                  .bytes().await?;
-
-    Ok(sender_cam.send(buf).await?)
+    sender_cam.send(buf).await?;
+    Ok(())
 }
 
 pub async fn if_absent_send_image(lock: &Lock, sender_cam: &Sender<Bytes>) -> Result<(), Box<dyn Error>> {
