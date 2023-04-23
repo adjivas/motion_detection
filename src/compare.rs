@@ -8,7 +8,7 @@ pub fn compare(past: &DynamicImage, present: &DynamicImage) -> Result<f64, Box<d
         &present.to_luma8()
     )?;
 
-    println!("D: {}", distortion.score);
+    dbg!(distortion.score);
 
     Ok(distortion.score)
 }
