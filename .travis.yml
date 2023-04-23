@@ -1,0 +1,21 @@
+language: rust
+
+services:
+  - docker
+
+rust:
+  - stable
+
+cache: cargo
+
+env:
+  - TARGET=arm-unknown-linux-gnueabihf
+  - TARGET=armv7-unknown-linux-gnueabihf
+  - TARGET=x86_64-unknown-linux-gnu
+
+install:
+  - rustup self update
+  - cargo install cross --force
+
+script:
+  - cross build --target $TARGET --release
