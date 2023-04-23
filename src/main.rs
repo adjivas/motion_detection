@@ -15,14 +15,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mqtt_host = Box::leak(std::env::var("MQTT_HOST").unwrap().into_boxed_str()) as &'static str;
     let mqtt_port = Box::leak(std::env::var("MQTT_PORT").unwrap().into_boxed_str()) as &'static str;
     let mqtt_publish = Box::leak(std::env::var("MQTT_PUBLISH").unwrap().into_boxed_str()) as &'static str;
+    let http_cgi_host = Box::leak(std::env::var("HTTP_CGI_HOST").unwrap().into_boxed_str()) as &'static str;
+    let http_cgi_user = Box::leak(std::env::var("HTTP_CGI_USER").unwrap().into_boxed_str()) as &'static str;
+    let http_cgi_pass = Box::leak(std::env::var("HTTP_CGI_PASS").unwrap().into_boxed_str()) as &'static str;
     let http_cgi_interval = Duration::from_secs(1);
 
     let rt  = Runtime::new()?;
 
     let (sender, mut receiver) = channel(1);
     rt.spawn(async move {
-        loop {
-            req_send_image(&sender).await.unwrap();
+        let build = reqwest::Client::new()
+            .get(http_cgi_host)
+            .basic_auth(http_cgi_user, Some(http_cgi_pass));
+        while let Some(build) = build.try_clone() {
+            req_send_image(build, &sender).await.unwrap();
             sleep(http_cgi_interval).await;
         }
     });
