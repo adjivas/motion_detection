@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate dotenv_codegen;
-
 mod request;
 mod compare;
 
@@ -12,26 +9,27 @@ use tokio::time::{sleep, Duration};
 use tokio::sync::mpsc::channel;
 use tokio::runtime::Runtime;
 
-static MQTT_NAME: &'static str = dotenv!("MQTT_NAME");
-static MQTT_HOST: &'static str = dotenv!("MQTT_HOST");
-static MQTT_PORT: &'static str = dotenv!("MQTT_PORT");
-static MQTT_PUBLISH: &'static str = dotenv!("MQTT_TOPIC_MOTION");
-static HTTP_CGI_INTERVAL: Duration = Duration::from_secs(1);
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let mqtt_name = Box::leak(std::env::var("MQTT_NAME").unwrap().into_boxed_str()) as &'static str;
+    let mqtt_host = Box::leak(std::env::var("MQTT_HOST").unwrap().into_boxed_str()) as &'static str;
+    let mqtt_port = Box::leak(std::env::var("MQTT_PORT").unwrap().into_boxed_str()) as &'static str;
+    let mqtt_publish = Box::leak(std::env::var("MQTT_PUBLISH").unwrap().into_boxed_str()) as &'static str;
+    let http_cgi_interval = Duration::from_secs(1);
+
     let rt  = Runtime::new()?;
 
     let (sender, mut receiver) = channel(1);
     rt.spawn(async move {
         loop {
             req_send_image(&sender).await.unwrap();
-            sleep(HTTP_CGI_INTERVAL).await;
+            sleep(http_cgi_interval).await;
         }
     });
 
-    let port = MQTT_PORT.parse::<u16>().unwrap();
+    let port = mqtt_port.parse::<u16>().unwrap();
 
-    let options = MqttOptions::new(MQTT_NAME, MQTT_HOST, port);
+    let options = MqttOptions::new(mqtt_name, mqtt_host, port);
     let (mut client, mut eventloop) = Client::new(options, 2);
 
     let ref before = receiver.blocking_recv().unwrap();
@@ -41,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let distortion = compare(&before, &after)?;
 
-        client.publish(MQTT_PUBLISH, QoS::AtLeastOnce, true, distortion.to_string().as_bytes()).unwrap();
+        client.publish(mqtt_publish, QoS::AtLeastOnce, true, distortion.to_string().as_bytes()).unwrap();
         eventloop.recv().unwrap()?;
         before = after;
     }
