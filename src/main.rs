@@ -6,7 +6,6 @@ mod compare;
 
 use std::error::Error;
 use request::req_send_image;
-use lazy_static::lazy_static;
 use compare::compare;
 use rumqttc::{self, Client, MqttOptions, QoS};
 use tokio::time::{sleep, Duration};
@@ -19,18 +18,10 @@ static MQTT_PORT: &'static str = dotenv!("MQTT_PORT");
 static MQTT_PUBLISH: &'static str = dotenv!("MQTT_TOPIC_MOTION");
 static HTTP_CGI_INTERVAL: Duration = Duration::from_secs(1);
 
-lazy_static! {
-    static ref MQTT_OPTIONS: MqttOptions = {
-        let port = MQTT_PORT.parse::<u16>().unwrap();
-        
-        MqttOptions::new(MQTT_NAME, MQTT_HOST, port)
-    };
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
     let rt  = Runtime::new()?;
 
-    let (sender, mut receiver) = channel(2);
+    let (sender, mut receiver) = channel(1);
     rt.spawn(async move {
         loop {
             req_send_image(&sender).await.unwrap();
@@ -38,7 +29,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let (mut client, mut eventloop) = Client::new(MQTT_OPTIONS.clone(), 10);
+    let port = MQTT_PORT.parse::<u16>().unwrap();
+
+    let options = MqttOptions::new(MQTT_NAME, MQTT_HOST, port);
+    let (mut client, mut eventloop) = Client::new(options, 2);
 
     let ref before = receiver.blocking_recv().unwrap();
     let mut before = image::load_from_memory(before)?;
