@@ -1,11 +1,11 @@
 #[macro_use]
 extern crate dotenv_codegen;
 
-mod home;
+mod request;
 mod compare;
 
 use std::error::Error;
-use home::req_send_image;
+use request::req_send_image;
 use lazy_static::lazy_static;
 use compare::compare;
 use rumqttc::{self, Client, MqttOptions, QoS};
