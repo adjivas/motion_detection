@@ -4,11 +4,11 @@ extern crate dotenv_codegen;
 mod home;
 mod compare;
 
-use home::{if_absent_send_image, callback_update_presence, ABSENT};
+use std::{error::Error, thread, time, sync::Arc};
+use home::{send_image, update_presence, ABSENT};
 use lazy_static::lazy_static;
 use compare::compare;
-use mosquitto_client::{Mosquitto, TopicMatcher};
-use std::{error::Error, thread, time, sync::Arc};
+use rumqttc::{self, Client, AsyncClient, MqttOptions, QoS, Event, Incoming};
 use tokio::time::{self as TokioTime, Duration as TokioDuration};
 use tokio::sync::{RwLock, mpsc::channel};
 use tokio::runtime::Runtime;
@@ -22,12 +22,10 @@ static MQTT_INTERVAL: time::Duration = time::Duration::from_secs(1);
 static HTTP_CGI_INTERVAL: TokioDuration = TokioDuration::from_secs(1);
 
 lazy_static! {
-    static ref MQTT: Mosquitto = {
-        let mqtt = Mosquitto::new(MQTT_NAME);
-        let port = MQTT_PORT.parse::<u32>().unwrap();
-
-        mqtt.connect(MQTT_HOST, port).unwrap();
-        mqtt
+    static ref MQTT_OPTIONS: MqttOptions = {
+        let port = MQTT_PORT.parse::<u16>().unwrap();
+        
+        MqttOptions::new(MQTT_NAME, MQTT_HOST, port)
     };
 }
 
@@ -38,37 +36,45 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lock_cam = lock.clone();
 
     let (sender, mut receiver) = channel(2);
-    let sender_cam = sender.clone();
     rt.spawn(async move {
         let mut interval = TokioTime::interval(HTTP_CGI_INTERVAL);
 
         loop {
-            if_absent_send_image(&lock_cam, &sender_cam).await.unwrap();
+            let is_locked = lock_cam.try_read().unwrap();
+            if *is_locked == ABSENT {
+                send_image(&sender).await.unwrap();
+            }
             interval.tick().await;
         }
     });
 
+    let (client, mut eventloop) = AsyncClient::new(MQTT_OPTIONS.clone(), 10);
     rt.spawn(async move {
-        let event_leave: TopicMatcher = MQTT.subscribe(MQTT_SUBSCRIBE, 1).unwrap();
-        let mut call = MQTT.callbacks(());
+        client
+            .subscribe(MQTT_SUBSCRIBE, QoS::AtMostOnce)    
+            .await    
+            .unwrap();
 
-        call.on_message(|_, message| callback_update_presence(&lock, &event_leave, message));
-        loop {
+        while let Ok(notification) = eventloop.poll().await {
+            if let Event::Incoming(Incoming::Publish(publish)) = notification {
+                update_presence(&lock, &publish.payload).await.unwrap();
+            }
             thread::sleep(MQTT_INTERVAL);
-
-            MQTT.do_loop(-1).unwrap();
         }
     });
 
+    let (mut client, mut eventloop) = Client::new(MQTT_OPTIONS.clone(), 10);
+
     let ref before = receiver.blocking_recv().unwrap();
     let mut before = image::load_from_memory(before)?;
-    while let Some(ref after)  = receiver.blocking_recv() {
+    while let Some(ref after) = receiver.blocking_recv() {
         let after = image::load_from_memory(after)?;
 
         let distortion = compare(&before, &after)?;
-        MQTT.publish(&MQTT_PUBLISH, distortion.to_string().as_bytes(), 1, false)?;
+
+        client.publish(MQTT_PUBLISH, QoS::AtLeastOnce, true, distortion.to_string().as_bytes()).unwrap();
+        eventloop.recv().unwrap()?;
         before = after;
     }
-    MQTT.disconnect()?;
     Ok(())
 }
