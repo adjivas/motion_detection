@@ -9,7 +9,7 @@ use home::req_send_image;
 use lazy_static::lazy_static;
 use compare::compare;
 use rumqttc::{self, Client, MqttOptions, QoS};
-use tokio::time::{self as TokioTime, Duration as TokioDuration};
+use tokio::time::{sleep, Duration};
 use tokio::sync::mpsc::channel;
 use tokio::runtime::Runtime;
 
@@ -17,7 +17,7 @@ static MQTT_NAME: &'static str = dotenv!("MQTT_NAME");
 static MQTT_HOST: &'static str = dotenv!("MQTT_HOST");
 static MQTT_PORT: &'static str = dotenv!("MQTT_PORT");
 static MQTT_PUBLISH: &'static str = dotenv!("MQTT_TOPIC_MOTION");
-static HTTP_CGI_INTERVAL: TokioDuration = TokioDuration::from_secs(1);
+static HTTP_CGI_INTERVAL: Duration = Duration::from_secs(1);
 
 lazy_static! {
     static ref MQTT_OPTIONS: MqttOptions = {
@@ -32,11 +32,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (sender, mut receiver) = channel(2);
     rt.spawn(async move {
-        let mut interval = TokioTime::interval(HTTP_CGI_INTERVAL);
-
         loop {
             req_send_image(&sender).await.unwrap();
-            interval.tick().await;
+            sleep(HTTP_CGI_INTERVAL).await;
         }
     });
 
