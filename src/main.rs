@@ -37,9 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let distortion = compare(&before, &after)?;
 
         client.publish(mqtt_publish, QoS::AtMostOnce, false, distortion.to_string().as_bytes()).unwrap();    
-        eventloop.iter().take_while(|x| { dbg!(x); match x {
+        eventloop.iter().take_while(|x| match dbg!(x) {
             Ok(Event::Outgoing(Outgoing::Publish(_))) => false,
             _ => true,
-        }}).for_each(drop);
+        }).for_each(drop);
     }
 }

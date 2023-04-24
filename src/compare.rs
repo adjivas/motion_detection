@@ -1,12 +1,11 @@
 use image::DynamicImage;
-use image_compare::prelude::*;
 
 pub fn compare(past: &DynamicImage, present: &DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
-    let distortion = image_compare::gray_similarity_structure(
-        &Algorithm::RootMeanSquared,
-        &past.to_luma8(),
-        &present.to_luma8()
+    let distortion = image_compare::rgb_hybrid_compare(
+        &past.to_rgb8(),
+        &present.to_rgb8()
     )?;
+
 
     dbg!(distortion.score);
 
