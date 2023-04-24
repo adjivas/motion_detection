@@ -66,7 +66,7 @@ pub fn criterion_benchmark(bench: &mut Criterion) {
     bench.bench_function("open", |bench| bench.iter(|| open()));
 
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
-    bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8(&image, &image)));
+    bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
     bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
     bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
 }
