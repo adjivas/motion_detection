@@ -11,8 +11,18 @@ image-compare = "0.2"
 image = "0.24"
 openssl = { version = "0.10", features = ["vendored"] }
 
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
 [build]
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
     "apt-get update && apt-get --assume-yes install libssl-dev:$CROSS_DEB_ARCH"
 ]
+
+[[bench]]
+name = "image"
+harness = false
+
+[profile.bench]
+debug = true
