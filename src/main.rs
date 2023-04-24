@@ -4,11 +4,17 @@ mod compare;
 use std::error::Error;
 use std::{time::Duration, thread::sleep};
 use std::iter;
-use compare::compare;
+use compare::{load, compare};
 use rumqttc::{Client, MqttOptions, QoS, Outgoing, Event};
 use request::get_image;
 
+#[cfg(feature = "magick")]
+static START: std::sync::Once = std::sync::Once::new();
+
 fn main() -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "magick")]
+    START.call_once(|| magick_rust::magick_wand_genesis());
+
     let mqtt_name = Box::leak(std::env::var("MQTT_NAME").unwrap().into_boxed_str()) as &'static str;
     let mqtt_host = Box::leak(std::env::var("MQTT_HOST").unwrap().into_boxed_str()) as &'static str;
     let mqtt_port = Box::leak(std::env::var("MQTT_PORT").unwrap().into_boxed_str()) as &'static str;
@@ -26,9 +32,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     let mut it_images = iter::repeat_with(|| {
         sleep(http_cgi_interval);
-        let ref buf = get_image(http_cgi_host, http_cgi_user, http_cgi_pass).unwrap();
+        let buf = get_image(http_cgi_host, http_cgi_user, http_cgi_pass).unwrap();
 
-        image::load_from_memory(buf).unwrap()
+        load(buf).unwrap()
     }).peekable();
 
     loop {
