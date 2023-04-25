@@ -1,10 +1,9 @@
 extern crate criterion;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-mod data;
-
 use std::time::Duration;
-use image_compare::prelude::*;
+
+mod data;
 
 criterion_group! {
     name = benches;
@@ -13,24 +12,12 @@ criterion_group! {
 }
 criterion_main!(benches);
 
-
+#[cfg(feature = "nomagick")]
 fn load_from_memory() {
     assert!(image::load_from_memory(data::RAW_DATA).is_ok());
 }
 
-fn open() {
-    let path = std::path::Path::new(data::PATH_DATA);
-
-    assert!(image::open(path).is_ok());
-}
-
-fn reader() {
-    let reader = image::io::Reader::new(std::io::Cursor::new(data::RAW_DATA))
-                                   .with_guessed_format().expect("REASON");
-
-    assert!(reader.decode().is_ok());
-}
-
+#[cfg(feature = "nomagick")]
 fn compare_rgb8_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::rgb_hybrid_compare(
         &a.to_rgb8(),
@@ -40,9 +27,10 @@ fn compare_rgb8_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
     assert!(compare.is_ok());
 }
 
+#[cfg(feature = "nomagick")]
 fn compare_luma8_rootmeansquared(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::gray_similarity_structure(
-        &Algorithm::RootMeanSquared,
+        &image_compare::Algorithm::RootMeanSquared,
         &a.to_luma8(),
         &b.to_luma8()
     );
@@ -50,9 +38,10 @@ fn compare_luma8_rootmeansquared(a: &image::DynamicImage, b: &image::DynamicImag
     assert!(compare.is_ok());
 }
 
+#[cfg(feature = "nomagick")]
 fn compare_luma8_mssimsimple(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::gray_similarity_structure(
-        &Algorithm::MSSIMSimple,
+        &image_compare::Algorithm::MSSIMSimple,
         &a.to_luma8(),
         &b.to_luma8()
     );
@@ -60,13 +49,35 @@ fn compare_luma8_mssimsimple(a: &image::DynamicImage, b: &image::DynamicImage) {
     assert!(compare.is_ok());
 }
 
-pub fn criterion_benchmark(bench: &mut Criterion) {
-    bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
-    bench.bench_function("reader", |bench| bench.iter(|| reader()));
-    bench.bench_function("open", |bench| bench.iter(|| open()));
+#[cfg(feature = "magick")]
+fn read_image_blob() {
+    let wand = magick_rust::MagickWand::new();
 
+    wand.read_image_blob(data::RAW_DATA).unwrap();
+    wand.fit(100, 100);
+}
+
+#[cfg(feature = "magick")]
+fn compare_wand(a: &magick_rust::MagickWand, b: &magick_rust::MagickWand) {
+    let (_, _) = a.compare_images(&b, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric);
+}
+
+#[cfg(feature = "nomagick")]
+pub fn criterion_benchmark(bench: &mut Criterion) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
+    bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
     bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
     bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
     bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
+}
+
+#[cfg(feature = "magick")]
+pub fn criterion_benchmark(bench: &mut Criterion) {
+    let image = magick_rust::MagickWand::new();
+
+    image.read_image_blob(data::RAW_DATA).unwrap();
+    image.fit(100, 100);
+
+    bench.bench_function("read_image_blob", |bench| bench.iter(|| read_image_blob()));
+    bench.bench_function("compare wand", |bench| bench.iter(|| compare_wand(&image, &image)));
 }

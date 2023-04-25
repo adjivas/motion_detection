@@ -26,10 +26,10 @@ pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Res
     Ok(distortion.score)
 }
 
-#[cfg(all(feature = "nomagick", target_arch = "arm"))]
+#[cfg(all(feature = "nomagick", not(target_arch = "x86_64")))]
 pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
     let distortion = image_compare::gray_similarity_structure(
-        &Algorithm::RootMeanSquared,
+        &image_compare::Algorithm::RootMeanSquared,
         &past.to_luma8(),
         &present.to_luma8()
     )?;
