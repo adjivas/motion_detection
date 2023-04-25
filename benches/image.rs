@@ -1,13 +1,16 @@
 extern crate criterion;
 use criterion::{criterion_group, criterion_main, Criterion};
-use criterion_perf_events::Perf;
 use criterion::measurement::WallTime;
+#[cfg(target_arch = "x86_64")]
+use criterion_perf_events::Perf;
+#[cfg(target_arch = "x86_64")]
 use perfcnt::linux::HardwareEventType as Hardware;
+#[cfg(target_arch = "x86_64")]
 use perfcnt::linux::PerfCounterBuilderLinux as Builder;
+#[cfg(target_arch = "x86_64")]
+use pprof::criterion::{PProfProfiler, Output};
 
 use std::time::Duration;
-
-use pprof::criterion::{PProfProfiler, Output};
 
 mod data;
 
@@ -19,6 +22,7 @@ criterion_group! {
     targets = criterion_benchmark_time
 }
 
+#[cfg(target_arch = "x86_64")]
 criterion_group! {
     name = benches_perf;
     config = Criterion::default().sample_size(100)
@@ -27,7 +31,10 @@ criterion_group! {
     targets = criterion_benchmark_perf
 }
 
+#[cfg(target_arch = "x86_64")]
 criterion_main!(benches_perf, benches_time);
+#[cfg(not(target_arch = "x86_64"))]
+criterion_main!(benches_time);
 
 #[cfg(feature = "nomagick")]
 fn load_from_memory() {
@@ -94,6 +101,7 @@ pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     bench.bench_function("compare wand", |bench| bench.iter(|| compare_wand(&image, &image)));
 }
 
+#[cfg(target_arch = "x86_64")]
 pub fn criterion_benchmark_time(bench: &mut Criterion<WallTime>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
     bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
