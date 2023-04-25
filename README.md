@@ -9,6 +9,7 @@ cargo build --release --features magick # with ImageMagick C library
 How to cross compile:
 ```bash
 cross build --target x86_64-unknown-linux-gnu --release --features nomagick
+cross build --target x86_64-unknown-linux-gnu --release --features magick
 cross build --target arm-unknown-linux-gnueabihf --release --features nomagick
 cross build --target armv7-unknown-linux-gnueabihf --release --features nomagick
 ```
