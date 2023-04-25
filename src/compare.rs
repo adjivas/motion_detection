@@ -14,11 +14,24 @@ pub fn load(buf: bytes::Bytes) -> Result<magick_rust::MagickWand, Box<dyn std::e
     Ok(wand)
 }
 
-#[cfg(feature = "nomagick")]
+#[cfg(all(feature = "nomagick", target_arch = "x86_64"))]
 pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
     let distortion = image_compare::rgb_hybrid_compare(
         &past.to_rgb8(),
         &present.to_rgb8()
+    )?;
+
+    dbg!(distortion.score);
+
+    Ok(distortion.score)
+}
+
+#[cfg(all(feature = "nomagick", target_arch = "arm"))]
+pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
+    let distortion = image_compare::gray_similarity_structure(
+        &Algorithm::RootMeanSquared,
+        &past.to_luma8(),
+        &present.to_luma8()
     )?;
 
     dbg!(distortion.score);
