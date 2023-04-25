@@ -39,12 +39,10 @@ cross build --target armv7-unknown-linux-gnueabihf --release --features nomagick
 ## Test the performences
 How to run the benchmarks:
 ```shell
-cargo bench --features nomagick
-cargo bench --features magick
+cargo bench --all-features
 ```
 
 How to run FlameGraph:
 ```shell
-cargo bench --features nomagick --bench image -- --profile-time=5
-cargo bench --features magick --bench image -- --profile-time=5
+cargo bench --all-features --bench image -- --profile-time=5
 ```

@@ -1,11 +1,11 @@
-#[cfg(feature = "nomagick")]
+#[cfg(all(feature = "nomagick", not(feature = "magick")))]
 pub fn load(buf: bytes::Bytes) -> Result<image::DynamicImage, Box<dyn std::error::Error>> {
     let image = image::load_from_memory(buf.as_ref())?;
 
     Ok(image)
 }
 
-#[cfg(feature = "magick")]
+#[cfg(all(feature = "magick", not(feature = "nomagick")))]
 pub fn load(buf: bytes::Bytes) -> Result<magick_rust::MagickWand, Box<dyn std::error::Error>> {
     let wand = magick_rust::MagickWand::new();
     wand.read_image_blob(buf)?;
@@ -14,7 +14,7 @@ pub fn load(buf: bytes::Bytes) -> Result<magick_rust::MagickWand, Box<dyn std::e
     Ok(wand)
 }
 
-#[cfg(all(feature = "nomagick", target_arch = "x86_64"))]
+#[cfg(all(feature = "nomagick", not(feature = "magick"), target_arch = "x86_64"))]
 pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
     let distortion = image_compare::rgb_hybrid_compare(
         &past.to_rgb8(),
@@ -26,7 +26,7 @@ pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Res
     Ok(distortion.score)
 }
 
-#[cfg(all(feature = "nomagick", not(target_arch = "x86_64")))]
+#[cfg(all(feature = "nomagick", not(feature = "magick"), not(target_arch = "x86_64")))]
 pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Result<f64, Box<dyn std::error::Error>> {
     let distortion = image_compare::gray_similarity_structure(
         &image_compare::Algorithm::RootMeanSquared,
@@ -39,7 +39,7 @@ pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Res
     Ok(distortion.score)
 }
 
-#[cfg(feature = "magick")]
+#[cfg(all(feature = "magick", not(feature = "nomagick")))]
 pub fn compare(past: &magick_rust::MagickWand, present: &magick_rust::MagickWand) -> Result<f64, Box<dyn std::error::Error>> {
     let (distortion, _diff) =
         past.compare_images(&present, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric);
@@ -47,4 +47,14 @@ pub fn compare(past: &magick_rust::MagickWand, present: &magick_rust::MagickWand
     dbg!(distortion);
 
     Ok(distortion)
+}
+
+#[cfg(all(feature = "magick", feature = "nomagick"))]
+pub fn load(_: bytes::Bytes) -> Result<magick_rust::MagickWand, Box<dyn std::error::Error>> {
+    unimplemented!()
+}
+
+#[cfg(all(feature = "magick", feature = "nomagick"))]
+pub fn compare(_: &magick_rust::MagickWand, _: &magick_rust::MagickWand) -> Result<f64, Box<dyn std::error::Error>> {
+    unimplemented!()
 }

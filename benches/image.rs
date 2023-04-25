@@ -74,22 +74,17 @@ fn read_image_blob() {
     wand.fit(100, 100);
 }
 
-#[cfg(feature = "magick")]
 fn compare_wand(a: &magick_rust::MagickWand, b: &magick_rust::MagickWand) {
     let (_, _) = a.compare_images(&b, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric);
 }
 
-#[cfg(feature = "nomagick")]
 pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
     bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
     bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
     bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
     bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
-}
 
-#[cfg(feature = "magick")]
-pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     let image = magick_rust::MagickWand::new();
 
     image.read_image_blob(data::RAW_DATA).unwrap();
@@ -99,17 +94,13 @@ pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     bench.bench_function("compare wand", |bench| bench.iter(|| compare_wand(&image, &image)));
 }
 
-#[cfg(feature = "nomagick")]
 pub fn criterion_benchmark_time(bench: &mut Criterion<WallTime>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
     bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
     bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
     bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
     bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
-}
 
-#[cfg(feature = "magick")]
-pub fn criterion_benchmark_time(bench: &mut Criterion<WallTime>) {
     let image = magick_rust::MagickWand::new();
 
     image.read_image_blob(data::RAW_DATA).unwrap();
