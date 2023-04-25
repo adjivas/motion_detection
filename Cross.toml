@@ -2,5 +2,5 @@
 pre-build = [
     "dpkg --add-architecture $CROSS_DEB_ARCH",
     "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes libcurl:$CROSS_DEB_ARCH autoconf:$CROSS_DEB_ARCH pkg-config:$CROSS_DEB_ARCH build-essential:$CROSS_DEB_ARCH",
-    "curl -LO https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-8.tar.gz && tar xzf 7.1.1-8.tar.gz && sh ./ImageMagick-7.1.1-8/configure --prefix=/usr/local --with-jpeg=yes --with-jp2=yes && make -j && make install && ldconfig /usr/local/lib/"
+    "curl -LO https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-8.tar.gz && tar xzf 7.1.1-8.tar.gz && sh ./ImageMagick-7.1.1-8/configure --prefix=/usr/local --with-jpeg=yes --with-jp2=yes && make -j && make install && ldconfig /usr/local/lib && make check"
 ]
