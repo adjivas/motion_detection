@@ -19,7 +19,7 @@ image = { version = "0.24", optional = true }
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
 
-[target.'cfg(target_arch = "x86_64")'.dependencies]
+[target.'cfg(target_arch = "x86_64")'.dev-dependencies]
 criterion-perf-events = "0.3.0"
 pprof = { version = "0.11", features = ["flamegraph", "criterion"] }
 perfcnt = "0.8.0"
