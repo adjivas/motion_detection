@@ -37,12 +37,12 @@ criterion_main!(benches_perf, benches_time);
 criterion_main!(benches_time);
 
 #[cfg(feature = "nomagick")]
-fn load_from_memory() {
+fn nomagick_load_from_memory() {
     assert!(image::load_from_memory(data::RAW_DATA).is_ok());
 }
 
 #[cfg(feature = "nomagick")]
-fn compare_rgb8_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
+fn nomagick_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::rgb_hybrid_compare(
         &a.to_rgb8(),
         &b.to_rgb8()
@@ -52,7 +52,7 @@ fn compare_rgb8_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
 }
 
 #[cfg(feature = "nomagick")]
-fn compare_luma8_rootmeansquared(a: &image::DynamicImage, b: &image::DynamicImage) {
+fn nomagick_rmse(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::gray_similarity_structure(
         &image_compare::Algorithm::RootMeanSquared,
         &a.to_luma8(),
@@ -63,7 +63,7 @@ fn compare_luma8_rootmeansquared(a: &image::DynamicImage, b: &image::DynamicImag
 }
 
 #[cfg(feature = "nomagick")]
-fn compare_luma8_mssimsimple(a: &image::DynamicImage, b: &image::DynamicImage) {
+fn nomagick_mssims(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::gray_similarity_structure(
         &image_compare::Algorithm::MSSIMSimple,
         &a.to_luma8(),
@@ -81,39 +81,62 @@ fn read_image_blob() {
     wand.fit(100, 100);
 }
 
-fn compare_wand(a: &magick_rust::MagickWand, b: &magick_rust::MagickWand) {
-    let (_, _) = a.compare_images(&b, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric);
+#[cfg(feature = "magick")]
+fn magick_cmp(a: &magick_rust::MagickWand, b: &magick_rust::MagickWand, metric: magick_rust::bindings::MetricType) {
+    let (_, _) = a.compare_images(&b, metric);
 }
 
 pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
-    bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
-    bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
-    bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
-    bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
+    bench.bench_function("image-compare load", |bench| bench.iter(|| nomagick_load_from_memory()));
+    bench.bench_function("image-compare HYBRID", |bench| bench.iter(|| nomagick_hybrid(&image, &image)));
+    bench.bench_function("image-compare RMSE", |bench| bench.iter(|| nomagick_rmse(&image, &image)));
+    bench.bench_function("image-compare MSSIM", |bench| bench.iter(|| nomagick_mssims(&image, &image)));
 
     let image = magick_rust::MagickWand::new();
 
     image.read_image_blob(data::RAW_DATA).unwrap();
     image.fit(100, 100);
 
-    bench.bench_function("read_image_blob", |bench| bench.iter(|| read_image_blob()));
-    bench.bench_function("compare wand", |bench| bench.iter(|| compare_wand(&image, &image)));
+    bench.bench_function("magick load", |bench| bench.iter(|| read_image_blob()));
+    bench.bench_function("magick AE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_AbsoluteErrorMetric)));
+    bench.bench_function("magick FE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_FuzzErrorMetric)));
+    bench.bench_function("magick AE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanAbsoluteErrorMetric)));
+    bench.bench_function("magick EPPE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanErrorPerPixelErrorMetric)));
+    bench.bench_function("magick SE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanSquaredErrorMetric)));
+    bench.bench_function("magick CCE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_NormalizedCrossCorrelationErrorMetric)));
+    bench.bench_function("magick PAE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PeakAbsoluteErrorMetric)));
+    bench.bench_function("magick PtNR", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PeakSignalToNoiseRatioErrorMetric)));
+    bench.bench_function("magick PHE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PerceptualHashErrorMetric)));
+    bench.bench_function("magick RMSE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric)));
+    bench.bench_function("magick SS", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_StructuralSimilarityErrorMetric)));
+    bench.bench_function("magick SD", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_StructuralDissimilarityErrorMetric)));
 }
 
 #[cfg(target_arch = "x86_64")]
 pub fn criterion_benchmark_time(bench: &mut Criterion<WallTime>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
-    bench.bench_function("load_from_memory", |bench| bench.iter(|| load_from_memory()));
-    bench.bench_function("compare rgb8 hybrid", |bench| bench.iter(|| compare_rgb8_hybrid(&image, &image)));
-    bench.bench_function("compare luma8 RootMeanSquared", |bench| bench.iter(|| compare_luma8_rootmeansquared(&image, &image)));
-    bench.bench_function("compare luma8 MSSIMSimple", |bench| bench.iter(|| compare_luma8_mssimsimple(&image, &image)));
+    bench.bench_function("image-compare load", |bench| bench.iter(|| nomagick_load_from_memory()));
+    bench.bench_function("image-compare HYBRID", |bench| bench.iter(|| nomagick_hybrid(&image, &image)));
+    bench.bench_function("image-compare RMSE", |bench| bench.iter(|| nomagick_rmse(&image, &image)));
+    bench.bench_function("image-compare MSSIM", |bench| bench.iter(|| nomagick_mssims(&image, &image)));
 
     let image = magick_rust::MagickWand::new();
 
     image.read_image_blob(data::RAW_DATA).unwrap();
     image.fit(100, 100);
 
-    bench.bench_function("read_image_blob", |bench| bench.iter(|| read_image_blob()));
-    bench.bench_function("compare wand", |bench| bench.iter(|| compare_wand(&image, &image)));
+    bench.bench_function("magick load", |bench| bench.iter(|| read_image_blob()));
+    bench.bench_function("magick AE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_AbsoluteErrorMetric)));
+    bench.bench_function("magick FE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_FuzzErrorMetric)));
+    bench.bench_function("magick AE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanAbsoluteErrorMetric)));
+    bench.bench_function("magick EPPE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanErrorPerPixelErrorMetric)));
+    bench.bench_function("magick SE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_MeanSquaredErrorMetric)));
+    bench.bench_function("magick CCE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_NormalizedCrossCorrelationErrorMetric)));
+    bench.bench_function("magick PAE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PeakAbsoluteErrorMetric)));
+    bench.bench_function("magick PtNR", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PeakSignalToNoiseRatioErrorMetric)));
+    bench.bench_function("magick PHE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_PerceptualHashErrorMetric)));
+    bench.bench_function("magick RMSE", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric)));
+    bench.bench_function("magick SS", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_StructuralSimilarityErrorMetric)));
+    bench.bench_function("magick SD", |bench| bench.iter(|| magick_cmp(&image, &image, magick_rust::bindings::MetricType_StructuralDissimilarityErrorMetric)));
 }
