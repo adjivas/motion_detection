@@ -7,3 +7,4 @@ export MQTT_NAME="{MY SERVICE NAME}"
 export MQTT_HOST="localhost"
 export MQTT_PORT=1883
 export MQTT_PUBLISH="home/doorbell/motion"
+export MOTION_SENSIBILITY="0.90"
