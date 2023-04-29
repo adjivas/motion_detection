@@ -42,6 +42,11 @@ fn nomagick_load_from_memory() {
 }
 
 #[cfg(feature = "nomagick")]
+fn nomagick_load_from_memory_with_format() {
+    assert!(image::load_from_memory_with_format(data::RAW_DATA, image::ImageFormat::Jpeg).is_ok());
+}
+
+#[cfg(feature = "nomagick")]
 fn nomagick_hybrid(a: &image::DynamicImage, b: &image::DynamicImage) {
     let compare = image_compare::rgb_hybrid_compare(
         &a.to_rgb8(),
@@ -89,6 +94,7 @@ fn magick_cmp(a: &magick_rust::MagickWand, b: &magick_rust::MagickWand, metric: 
 pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
     bench.bench_function("image-compare load", |bench| bench.iter(|| nomagick_load_from_memory()));
+    bench.bench_function("image-compare load_format", |bench| bench.iter(|| nomagick_load_from_memory_with_format()));
     bench.bench_function("image-compare HYBRID", |bench| bench.iter(|| nomagick_hybrid(&image, &image)));
     bench.bench_function("image-compare RMSE", |bench| bench.iter(|| nomagick_rmse(&image, &image)));
     bench.bench_function("image-compare MSSIM", |bench| bench.iter(|| nomagick_mssims(&image, &image)));
@@ -117,6 +123,7 @@ pub fn criterion_benchmark_perf(bench: &mut Criterion<Perf>) {
 pub fn criterion_benchmark_time(bench: &mut Criterion<WallTime>) {
     let image = image::load_from_memory(data::RAW_DATA).unwrap();
     bench.bench_function("image-compare load", |bench| bench.iter(|| nomagick_load_from_memory()));
+    bench.bench_function("image-compare load_format", |bench| bench.iter(|| nomagick_load_from_memory_with_format()));
     bench.bench_function("image-compare HYBRID", |bench| bench.iter(|| nomagick_hybrid(&image, &image)));
     bench.bench_function("image-compare RMSE", |bench| bench.iter(|| nomagick_rmse(&image, &image)));
     bench.bench_function("image-compare MSSIM", |bench| bench.iter(|| nomagick_mssims(&image, &image)));
