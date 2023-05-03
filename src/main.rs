@@ -5,7 +5,9 @@ use std::error::Error;
 use std::{time::Duration, thread::sleep};
 use std::iter;
 use compare::{load, compare};
-use rumqttc::{Client, MqttOptions, QoS, Outgoing, Event};
+use rumqttc::v5::{Client, MqttOptions, Event};
+use rumqttc::v5::mqttbytes::QoS;
+use rumqttc::Outgoing;
 use request::get_image;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -28,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut mqtt_options = MqttOptions::new(mqtt_name, mqtt_host, mqtt_port);
     mqtt_options.set_keep_alive(mqtt_interval);
-    let (mut client, mut eventloop) = Client::new(mqtt_options, 10);
+    let (client, mut eventloop) = Client::new(mqtt_options, 10);
 
     let mut it_images = iter::repeat_with(|| {
         sleep(http_cgi_interval);
@@ -43,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let distortion = compare(&before, &after)?;
 
         if motion_sensibility > distortion {
-            client.publish(mqtt_publish, QoS::AtMostOnce, false, distortion.to_string().as_bytes()).unwrap();
+            client.publish(mqtt_publish, QoS::AtMostOnce, true, distortion.to_string()).unwrap();
             eventloop.iter().take_while(|x| match dbg!(x) {
                 Ok(Event::Outgoing(Outgoing::Publish(_))) => false,
                 _ => true,
