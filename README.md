@@ -1,4 +1,4 @@
-# Motion detection
+# Motion Detection
 This service will captures a MJPEG video and produces a MQTT's motion messages.
 
 It's was designed for the [BazzDoorbell](https://github.com/guino/BazzDoorbell) project.
