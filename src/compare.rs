@@ -22,8 +22,6 @@ pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Res
         &present.to_luma8()
     )?;
 
-    dbg!(distortion.score);
-
     Ok(distortion.score)
 }
 
@@ -31,8 +29,6 @@ pub fn compare(past: &image::DynamicImage, present: &image::DynamicImage) -> Res
 pub fn compare(past: &magick_rust::MagickWand, present: &magick_rust::MagickWand) -> Result<f64, Box<dyn std::error::Error>> {
     let (distortion, _diff) =
         past.compare_images(&present, magick_rust::bindings::MetricType_RootMeanSquaredErrorMetric);
-
-    dbg!(distortion);
 
     Ok(distortion)
 }

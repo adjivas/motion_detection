@@ -16,6 +16,7 @@ openssl = { version = "0.10", features = ["vendored"] }
 magick_rust = { version = "0.18", optional = true }
 image-compare = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true }
+chrono = "0.4"
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
