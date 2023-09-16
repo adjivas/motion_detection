@@ -12,9 +12,6 @@ use rumqttc::Outgoing;
 use request::get_image;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    #[cfg(feature = "magick")]
-    std::sync::Once::new().call_once(|| magick_rust::magick_wand_genesis());
-
     let mqtt_name = Box::leak(std::env::var("MQTT_NAME").unwrap().into_boxed_str()) as &'static str;
     let mqtt_host = Box::leak(std::env::var("MQTT_HOST").unwrap().into_boxed_str()) as &'static str;
     let mqtt_port = Box::leak(std::env::var("MQTT_PORT").unwrap().into_boxed_str()) as &'static str;
@@ -57,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     why => println!("Err {:?}", why),
                 }
             }
-            if motion_sensibility > distortion {
+            if distortion <= motion_sensibility {
                 println!("{}:{}", chrono::Utc::now(), distortion);
                 if let Err(why) = client.try_publish(mqtt_publish, QoS::AtMostOnce, false, distortion.to_string()) {
                     println!("Err {:?}", why)

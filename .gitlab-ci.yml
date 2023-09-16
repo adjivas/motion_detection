@@ -5,5 +5,5 @@ rust-latest:
   stage: build
   image: rust:latest
   script:
-    - cargo build --features nomagick --verbose
-    - cargo test --features nomagick --verbose
+    - cargo build
+    - cargo test
